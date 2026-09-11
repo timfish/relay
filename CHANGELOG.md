@@ -96,6 +96,7 @@
 **Internal**:
 
 - Limit the maximum amount of items in an envelope to 500. ([#6251](https://github.com/getsentry/relay/pull/6251))
+- Use `sentry-rust-minidump` for crash reporting and update the Sentry SDK to 0.49. ([#XXXX](https://github.com/getsentry/relay/pull/XXXX))
 
 ## 26.7.0
 

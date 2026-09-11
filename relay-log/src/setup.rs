@@ -4,12 +4,11 @@ use std::env;
 use std::fmt::{self, Display};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::Arc;
 
 use relay_common::impl_str_serde;
+use sentry::TransactionContext;
 use sentry::integrations::tracing::EventFilter;
 use sentry::types::Dsn;
-use sentry::{TracesSampler, TransactionContext};
 use serde::{Deserialize, Serialize};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{EnvFilter, Layer, prelude::*};
@@ -342,30 +341,25 @@ pub unsafe fn init(config: &LogConfig, sentry: &SentryConfig) {
         // was previously sampled. We don't want to take that into account because
         // SDKs send headers with their envelopes that erroneously cause us to
         // sample transactions.
-        let traces_sampler =
-            Some(Arc::new(move |_: &TransactionContext| traces_sample_rate) as Arc<TracesSampler>);
-        let mut options = sentry::ClientOptions {
-            dsn: Some(dsn).cloned(),
-            in_app_include: vec!["relay"],
-            release: Some(RELEASE.into()),
-            attach_stacktrace: config.enable_backtraces,
-            environment: sentry.environment.clone(),
-            server_name: sentry.server_name.clone(),
-            traces_sampler,
-            enable_logs: true,
-            ..Default::default()
-        };
+        let mut options = sentry::ClientOptions::new()
+            .in_app_include(["relay"])
+            .release(RELEASE)
+            .attach_stacktrace(config.enable_backtraces)
+            .traces_sampler(move |_: &TransactionContext| traces_sample_rate);
+        options.dsn = Some(dsn.clone());
+        options.environment = sentry.environment.clone();
+        options.server_name = sentry.server_name.clone();
 
         // If `default_tags` is set in Sentry configuration install the `before_send` hook
         // in order to inject said tags into each event
         if let Some(default_tags) = sentry.default_tags.clone() {
             // Install hook
-            options.before_send = Some(Arc::new(move |mut event| {
+            options = options.before_send(move |mut event| {
                 // Extend `event.tags` with `default_tags` without replacing tags already present
                 let previous_event_tags = std::mem::replace(&mut event.tags, default_tags.clone());
                 event.tags.extend(previous_event_tags);
                 Some(event)
-            }));
+            });
         }
 
         if !crash::is_crash_reporter_process() {
