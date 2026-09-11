@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["main",""]],"mod":[["alloc",""],["cli",""],["cliapp",""],["setup",""],["utils",""]]});
+window.SIDEBAR_ITEMS = {"fn":["main"],"mod":["cli","cliapp","healthcheck","setup","utils"],"static":["GLOBAL"]};
